@@ -12,10 +12,12 @@ Partial Class AppAddIn
     Const height As Double = 4150.0
     Private Sub AppAddIn_Startup(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Startup
         CommandManager.AddMacroCommand("太陽光パネル作成", AddressOf Me.MacroCommand)
+        CommandManager.AddMacroCommand("パネル枠線作成", AddressOf Me.MacroCommand2)
     End Sub
 
     Private Sub AppAddIn_Shutdown(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Shutdown
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand)
+        CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand2)
     End Sub
     ' パネル作成
     Private Sub MacroCommand()
@@ -49,6 +51,17 @@ Partial Class AppAddIn
         doc.UndoManager.EndUndoUnit()
 
     End Sub
+    ' パネル枠線作成
+    Private Sub MacroCommand2()
+        On Error Resume Next
+        Dim doc As Document = ActiveDocument
+
+        Dim drawing As Drawing = doc.CurrentDrawing
+        Dim points(1) As Point2d
+        Dim creator As PanelCreator = New PanelCreator(drawing, Geometry, 0, 0, 0, doc.SelectionManager)
+        creator.writePanelLine()
+    End Sub
+
     Private Class PanelCreator
         Dim currentX As Double
         Dim currentY As Double
@@ -78,7 +91,7 @@ Partial Class AppAddIn
 
             If groupCount > 0 Then
                 For i = 1 To groupCount
-                    panel = drawing.Shapes.AddPolyline(createAPanel(currentX, currentY, panelGroupCount))
+                    panel = Drawing.Shapes.AddPolyline(createAPanel(currentX, currentY, panelGroupCount))
                     panel.ColorNumber = 6
                     'panel.Rotate(Geometry.CreatePoint(currentX, currentY), angle)
                     ' パネル選択
@@ -88,7 +101,7 @@ Partial Class AppAddIn
                         Dim tmpX As Double = currentX + ((width * panelGroupCount) / 2)
                         'drawing.Shapes.AddText(CStr(panelGroupCount) + "列", Geometry.CreatePoint(backupX + (width * panelGroupCount) / 2, currentY), 0)
                         Dim textPoint As Point2d = Geometry.CreatePoint(currentX, currentY - 1000)
-                        textShape = drawing.Shapes.AddText(CStr(panelGroupCount) + "列", textPoint, 0)
+                        textShape = Drawing.Shapes.AddText(CStr(panelGroupCount) + "列", textPoint, 0)
                         textShape.FontHeight = charaH
                         'textShape.Rotate(textPoint, angle)
                         ' 文字選択
@@ -113,6 +126,40 @@ Partial Class AppAddIn
             createAPanel = panelPoints
 
         End Function
+        Public Sub writePanelLine()
+            Dim shape As SelectedShape = Me.selectinoManager.SelectedShapes.Item(0)
+            Dim firstPoint As Point2d = shape.Shape.GetBoundingPoints().GetValue(0)
+            Dim panelLine As PolylineShape
+
+            Dim linePoints(1) As Point2d
+            Dim i As Integer = 0
+
+            Dim ys(4) As Double
+            For i = 0 To UBound(shape.Shape.GetBoundingPoints())
+                ys(i) = shape.Shape.GetBoundingPoints().GetValue(i).Y
+            Next
+
+            Array.Sort(ys)
+
+            Dim baseY As Double = ys.GetValue(ys.Length - 1)
+
+            i = 0
+            For Each s In shape.Shape.GetBoundingPoints()
+                If s.Y = baseY Then
+                    linePoints(i) = Geometry.CreatePoint(s.X, s.Y + 500)
+                    i = i + 1
+                    If i > 1 Then
+                        Exit For
+                    End If
+                End If
+            Next
+
+            panelLine = drawing.Shapes.AddPolyline(linePoints)
+            panelLine.LinetypeNumber = 2
+            panelLine.ColorNumber = 4
+            panelLine.LinewidthNumber = 3
+
+        End Sub
 
     End Class
 
