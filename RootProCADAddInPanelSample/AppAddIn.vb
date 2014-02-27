@@ -61,6 +61,19 @@ Partial Class AppAddIn
         Dim creator As PanelCreator = New PanelCreator(drawing, Geometry, 0, 0, 0, doc.SelectionManager)
         creator.writePanelLine()
     End Sub
+    ' 補助線に沿ってめいいっぱいパネル配置
+    Private Sub MacroCommand3()
+        On Error Resume Next
+        Dim doc As Document = ActiveDocument
+
+        Dim drawing As Drawing = doc.CurrentDrawing
+        Dim points(1) As Point2d
+        Dim creator As PanelCreator = New PanelCreator(drawing, Geometry, 0, 0, 0, doc.SelectionManager)
+        creator.createPanelsFully()
+
+    End Sub
+
+
 
     Private Class PanelCreator
         Dim currentX As Double
@@ -83,6 +96,7 @@ Partial Class AppAddIn
             Me.selectinoManager = selectionManager
 
         End Sub
+        ' パネル配置
         Public Sub run(ByVal panelGroupCount As Integer)
             Dim groupCount As Integer = panelCounter \ panelGroupCount
             Dim backupX As Double = currentX
@@ -93,13 +107,14 @@ Partial Class AppAddIn
                 For i = 1 To groupCount
                     panel = Drawing.Shapes.AddPolyline(createAPanel(currentX, currentY, panelGroupCount))
                     panel.ColorNumber = 6
+                    panel.LinewidthNumber = 3
+                    panel.LinetypeNumber = 1
                     'panel.Rotate(Geometry.CreatePoint(currentX, currentY), angle)
                     ' パネル選択
                     Me.selectinoManager.SelectShape(panel, SelectionCombineMode.Add)
 
                     If panelGroupCount > 4 Then
                         Dim tmpX As Double = currentX + ((width * panelGroupCount) / 2)
-                        'drawing.Shapes.AddText(CStr(panelGroupCount) + "列", Geometry.CreatePoint(backupX + (width * panelGroupCount) / 2, currentY), 0)
                         Dim textPoint As Point2d = Geometry.CreatePoint(currentX, currentY - 1000)
                         textShape = Drawing.Shapes.AddText(CStr(panelGroupCount) + "列", textPoint, 0)
                         textShape.FontHeight = charaH
@@ -114,6 +129,7 @@ Partial Class AppAddIn
             End If
 
         End Sub
+        ' パネル配置座標を返す（連続線分の座標配列）
         Public Function createAPanel(ByVal x As Double, ByVal y As Double, ByVal panelCount As Integer) As Point2d()
 
             Dim panelPoints(4) As Point2d
@@ -126,40 +142,57 @@ Partial Class AppAddIn
             createAPanel = panelPoints
 
         End Function
+        ' パネル配置ガイド線の上部50xmの所に境界の線を引く
         Public Sub writePanelLine()
             Dim shape As SelectedShape = Me.selectinoManager.SelectedShapes.Item(0)
-            Dim firstPoint As Point2d = shape.Shape.GetBoundingPoints().GetValue(0)
+            Dim points() As Point2d = shape.Shape.GetBoundingPoints()
+
+
+            Dim firstPoint As Point2d = points.GetValue(0)
             Dim panelLine As PolylineShape
 
             Dim linePoints(1) As Point2d
             Dim i As Integer = 0
+            Dim lastPoint As Point2d = firstPoint
 
-            Dim ys(4) As Double
-            For i = 0 To UBound(shape.Shape.GetBoundingPoints())
-                ys(i) = shape.Shape.GetBoundingPoints().GetValue(i).Y
-            Next
+            firstPoint = getFirstPoint(points)
+            lastPoint = getlastPoint(points)
 
-            Array.Sort(ys)
+            linePoints(0) = Geometry.CreatePoint(firstPoint.X, firstPoint.Y + 500)
+            linePoints(1) = Geometry.CreatePoint(lastPoint.X, lastPoint.Y + 500)
 
-            Dim baseY As Double = ys.GetValue(ys.Length - 1)
-
-            i = 0
-            For Each s In shape.Shape.GetBoundingPoints()
-                If s.Y = baseY Then
-                    linePoints(i) = Geometry.CreatePoint(s.X, s.Y + 500)
-                    i = i + 1
-                    If i > 1 Then
-                        Exit For
-                    End If
-                End If
-            Next
-
-            panelLine = drawing.Shapes.AddPolyline(linePoints)
-            panelLine.LinetypeNumber = 2
+            panelLine = Drawing.Shapes.AddPolyline(linePoints)
+            panelLine.LinetypeNumber = 1
             panelLine.ColorNumber = 4
             panelLine.LinewidthNumber = 3
 
         End Sub
+        Public Sub createPanelsFully()
+
+
+
+
+        End Sub
+        Private Function getFirstPoint(ByVal points() As Point2d) As Point2d
+            Dim firstPoint As Point2d = points.GetValue(0)
+            For Each p In points
+                If firstPoint.X > p.X Or (firstPoint.X = p.X And firstPoint.Y < p.Y) Then
+                    firstPoint = p
+                End If
+            Next
+            getFirstPoint = firstPoint
+        End Function
+        Private Function getlastPoint(ByVal points() As Point2d) As Point2d
+            Dim lastPoint As Point2d = points.GetValue(0)
+            For Each p In points
+                If lastPoint.X < p.X Or (lastPoint.X = p.X And lastPoint.Y < p.Y) Then
+                    lastPoint = p
+                End If
+            Next
+            getlastPoint = lastPoint
+        End Function
+
+
 
     End Class
 
