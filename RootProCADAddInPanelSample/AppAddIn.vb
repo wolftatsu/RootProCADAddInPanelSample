@@ -65,10 +65,9 @@ Partial Class AppAddIn
     Private Sub MacroCommand3()
         On Error Resume Next
         Dim doc As Document = ActiveDocument
-
+        Dim panelCount As Integer = CInt(InputBox("パネル列数"))
         Dim drawing As Drawing = doc.CurrentDrawing
-        Dim points(1) As Point2d
-        Dim simulator As PanelSimulater = New PanelSimulater(drawing, Geometry, 0, 0, 0, doc.SelectionManager)
+        Dim simulator As PanelSimulater = New PanelSimulater(drawing, Geometry, panelCount, 0, 0, doc.SelectionManager)
         MsgBox(doc.SelectionManager.SelectedShapes.Count)
 
         simulator.simulate()
@@ -192,7 +191,7 @@ Partial Class AppAddIn
         Public Shared Function getLength(ByVal shape As Shape) As Double
             Dim s As Point2d = getFirstPoint(shape)
             Dim e As Point2d = getEndPoint(shape)
-            Return e.Y - s.Y
+            getLength = e.X - s.X
         End Function
     End Class
     ' パネル配置シミュレーター
@@ -253,8 +252,11 @@ Partial Class AppAddIn
             Dim ret As PutPanelVo
 
             ' 長さに対して何個おけるか？
-            ' TODO 置ける個数が2個未満だった時の考慮
             Dim theNumberCanBePut As Integer = param.length / PanelCreator.width
+            ' TODO 置ける個数が2個未満だった時の考慮
+            If theNumberCanBePut < 2 Then
+                Return New PutPanelVo(0, param.theNumberWantToPut, Nothing, True)
+            End If
 
             ' TODO 置きたい個数が2個未満だった時の対応
 
@@ -267,10 +269,14 @@ Partial Class AppAddIn
                 ' 置ける -> 置きたい数置く
                 PanelCreator.putPanel(drawing, Geometry, selectinoManager, param.theNumberWantToPut, param.startPoint)
                 ' Todo 2m幅おく
-                ' 
                 Dim startPoint As Point2d
-                startPoint = New Point2d(param.startPoint.X + (width * param.theNumberWantToPut) + width + 2000, param.startPoint.Y)
-                ret = New PutPanelVo(0, panelCounter, startPoint, False)
+                startPoint = New Point2d(param.startPoint.X + (width * param.theNumberWantToPut) + 2000, param.startPoint.Y)
+                ' 置きたい個数が1個の場合は、手修正の為、1パネル分開けておく
+                If param.theNumberWantToPut < 2 Then
+                    startPoint = New Point2d(startPoint.X + width, startPoint.Y)
+                End If
+                Dim length = param.length - (startPoint.X - param.startPoint.X)
+                ret = New PutPanelVo(length, panelCounter, startPoint, False)
             End If
 
             putPanelFully = ret
@@ -324,7 +330,7 @@ Partial Class AppAddIn
             getNext = lineArray.GetValue(currentIndex)
         End Function
         Public Function hasNext() As Boolean
-            Return currentIndex = lineArray.Length - 1
+            Return Not currentIndex = lineArray.Length - 1
         End Function
 
 
