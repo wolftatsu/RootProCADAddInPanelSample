@@ -7,18 +7,17 @@ Imports RootPro.RootProCAD.Geometry
 Imports RootPro.RootProCAD.UI
 <System.AddIn.AddIn("AppAddIn", Version:="1.0", Publisher:="", Description:="")> _
 Partial Class AppAddIn
-    ' panelサイズ
-    'Const width As Double = 1660.0
-    'Const height As Double = 4150.0
     Private Sub AppAddIn_Startup(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Startup
         CommandManager.AddMacroCommand("太陽光パネル作成", AddressOf Me.MacroCommand)
         CommandManager.AddMacroCommand("パネル枠線作成", AddressOf Me.MacroCommand2)
         CommandManager.AddMacroCommand("パネル設置シミュレーション", AddressOf Me.MacroCommand3)
+        CommandManager.AddMacroCommand("TestSelectionManager", AddressOf Me.TestSelectionManager)
     End Sub
 
     Private Sub AppAddIn_Shutdown(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Shutdown
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand)
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand2)
+        CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand3)
     End Sub
     ' パネル作成
     Private Sub MacroCommand()
@@ -62,19 +61,33 @@ Partial Class AppAddIn
         Dim creator As PanelCreator = New PanelCreator(drawing, Geometry, 0, 0, 0, doc.SelectionManager)
         creator.writePanelLine()
     End Sub
+    '   パネル設置シミュレーション実行
     Private Sub MacroCommand3()
         On Error Resume Next
         Dim doc As Document = ActiveDocument
-        Dim panelCount As Integer = CInt(InputBox("パネル列数"))
+        Dim panelCount As Integer = CInt(InputBox("パネル列数を入力してください"))
         Dim drawing As Drawing = doc.CurrentDrawing
         Dim simulator As PanelSimulater = New PanelSimulater(drawing, Geometry, panelCount, 0, 0, doc.SelectionManager)
-        MsgBox(doc.SelectionManager.SelectedShapes.Count)
+        ' MsgBox(doc.SelectionManager.SelectedShapes.Count)
 
+        doc.UndoManager.BeginUndoUnit()
         simulator.simulate()
+        doc.UndoManager.EndUndoUnit()
 
+    End Sub
+    Private Sub TestSelectionManager()
+        On Error Resume Next
+        Dim doc As Document = ActiveDocument
+        Dim panelCount As Integer = CInt(InputBox("パネル列数を入力してください"))
+        Dim drawing As Drawing = doc.CurrentDrawing
+        Dim simulator As PanelSimulater = New PanelSimulater(drawing, Geometry, panelCount, 0, 0, doc.SelectionManager)
+        ' MsgBox(doc.SelectionManager.SelectedShapes.Count)
+
+        simulator.selectionSample()
 
     End Sub
 
+    ' パネル作成クラス
     Public Class PanelCreator
         Protected currentX As Double
         Protected currentY As Double
@@ -176,7 +189,6 @@ Partial Class AppAddIn
                     getFirstPoint = p
                 End If
             Next
-
         End Function
         ' 図形の終点を取得する
         Protected Shared Function getEndPoint(ByVal shape As Shape) As Point2d
@@ -200,7 +212,7 @@ Partial Class AppAddIn
         Public Sub New(ByVal drawing As Drawing, ByVal geometry As Geometry, ByVal panelCounter As Integer, ByVal currentX As Double, ByVal currentY As Double, ByVal selectionManager As SelectionManager)
             MyBase.New(drawing, geometry, panelCounter, currentX, currentY, selectionManager)
         End Sub
-
+        ' SelectedObjectの挙動確認
         Public Sub selectionSample()
 
             'For i = 0 To selectinoManager.SelectedShapes.Count
@@ -209,13 +221,13 @@ Partial Class AppAddIn
             'Next
 
             Dim col As SelectedLineCollection = New SelectedLineCollection(selectinoManager.SelectedShapes)
-            MsgBox(PanelCreator.getFirstPoint(col.getNext()).Y)
+            MsgBox(PanelCreator.getFirstPoint(col.getCurrent()).Y)
             MsgBox(PanelCreator.getFirstPoint(col.getNext()).Y)
             MsgBox(PanelCreator.getFirstPoint(col.getNext()).Y)
 
         End Sub
         ' パネル配置シミュレーション
-        ' 置けるだけ置く
+        ' 選択されたパネル間隔線に沿って、入力された列数分のパネルを配置する
         Public Sub simulate()
 
             Dim lines As SelectedLineCollection = New SelectedLineCollection(selectinoManager.SelectedShapes)
@@ -253,12 +265,10 @@ Partial Class AppAddIn
 
             ' 長さに対して何個おけるか？
             Dim theNumberCanBePut As Integer = param.length / PanelCreator.width
-            ' TODO 置ける個数が2個未満だった時の考慮
+            ' 置ける個数が2個未満だった時の考慮
             If theNumberCanBePut < 2 Then
                 Return New PutPanelVo(0, param.theNumberWantToPut, Nothing, True)
             End If
-
-            ' TODO 置きたい個数が2個未満だった時の対応
 
             ' 置きたい個数おけるか
             If param.theNumberWantToPut > theNumberCanBePut Then
@@ -295,24 +305,26 @@ Partial Class AppAddIn
             Me.startPoint = startPoint
             Me.isFetch = isFetch
         End Sub
-
     End Class
-
     ' 選択済みの基準線を管理するクラス
     Public Class SelectedLineCollection
-        Protected lineArray() As Shape
+        'Protected lineArray() As Shape
+        Protected lineArray = New List(Of SortableShape)
         Protected currentIndex As Integer
         Public Sub New(ByVal lines As SelectedShapeCollection)
             For i = 0 To lines.Count - 1
-                ReDim Preserve lineArray(i)
-                lineArray(i) = lines.Item(i).Shape
+                'ReDim Preserve lineArray(i)
+                'lineArray(i) = lines.Item(i).Shape
+                lineArray.add(New SortableShape(PanelCreator.getFirstPoint(lines.Item(i).Shape).Y, lines.Item(i).Shape))
             Next
+            lineArray.Sort()
             currentIndex = 0
         End Sub
         Public Function getCurrent() As Shape
-            Return lineArray(currentIndex)
+            Return lineArray(currentIndex).shape
         End Function
         Public Function getNext() As Shape
+            Dim al As New System.Collections.ArrayList()
             'Dim ret As Shape
             'Dim base As Shape = lineArray.GetValue(currentIndex)
             'Dim cindex As Integer
@@ -325,16 +337,36 @@ Partial Class AppAddIn
             '        cindex = i
             '    End If
             'Next
-
-            currentIndex = currentIndex + 1
-            getNext = lineArray.GetValue(currentIndex)
+            If hasNext() = True Then
+                currentIndex = currentIndex + 1
+                getNext = lineArray(currentIndex).shape
+            Else
+                getNext = getCurrent()
+            End If
         End Function
         Public Function hasNext() As Boolean
-            Return Not currentIndex = lineArray.Length - 1
+            Return Not currentIndex = lineArray.count - 1
         End Function
-
-
     End Class
+    ' shapeをy軸でソート可能にラップしたクラス
+    Public Class SortableShape
+        Implements IComparable(Of SortableShape)
+        Public y As Double
+        Public shape As Shape
+        Public Sub New(ByVal y As Double, ByVal shape As Shape)
+            Me.y = y
+            Me.shape = shape
+        End Sub
+        Public Function CompareTo(ByVal obj As SortableShape) As Integer Implements System.IComparable(Of SortableShape).CompareTo
+            If Me.y.CompareTo(obj.y) < 0 Then
+                Return 1
+            ElseIf Me.y.CompareTo(obj.y) > 0 Then
+                Return -2
+            Else
+                Return 0
+            End If
 
+        End Function
+    End Class
 
 End Class
