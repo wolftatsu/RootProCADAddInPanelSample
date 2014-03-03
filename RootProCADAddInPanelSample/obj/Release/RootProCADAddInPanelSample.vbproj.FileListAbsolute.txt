@@ -12,3 +12,10 @@ C:\Users\iino.tat\Documents\RootPro CAD Projects\Projects\RootProCADAddInPanelSa
 C:\Users\iino.tat\Documents\RootPro CAD Projects\Projects\RootProCADAddInPanelSample\RootProCADAddInPanelSample\obj\Release\RootProCADAddInPanelSample.vbproj.GenerateResource.Cache
 C:\Users\iino.tat\Documents\RootPro CAD Projects\Projects\RootProCADAddInPanelSample\RootProCADAddInPanelSample\obj\Release\RootProCADAddInPanelSample.dll
 C:\Users\iino.tat\Documents\RootPro CAD Projects\Projects\RootProCADAddInPanelSample\RootProCADAddInPanelSample\obj\Release\RootProCADAddInPanelSample.pdb
+C:\Users\PC User\Documents\RootPro CAD Projects\Projects\RootProCADAddInPanelSample\RootProCADAddInPanelSample\bin\Release\RootProCADAddInPanelSample.dll
+C:\Users\PC User\Documents\RootPro CAD Projects\Projects\RootProCADAddInPanelSample\RootProCADAddInPanelSample\bin\Release\RootProCADAddInPanelSample.pdb
+C:\Users\PC User\Documents\RootPro CAD Projects\Projects\RootProCADAddInPanelSample\RootProCADAddInPanelSample\obj\Release\ResolveAssemblyReference.cache
+C:\Users\PC User\Documents\RootPro CAD Projects\Projects\RootProCADAddInPanelSample\RootProCADAddInPanelSample\obj\Release\RootProCADAddInPanelSample.Resources.resources
+C:\Users\PC User\Documents\RootPro CAD Projects\Projects\RootProCADAddInPanelSample\RootProCADAddInPanelSample\obj\Release\RootProCADAddInPanelSample.vbproj.GenerateResource.Cache
+C:\Users\PC User\Documents\RootPro CAD Projects\Projects\RootProCADAddInPanelSample\RootProCADAddInPanelSample\obj\Release\RootProCADAddInPanelSample.dll
+C:\Users\PC User\Documents\RootPro CAD Projects\Projects\RootProCADAddInPanelSample\RootProCADAddInPanelSample\obj\Release\RootProCADAddInPanelSample.pdb
