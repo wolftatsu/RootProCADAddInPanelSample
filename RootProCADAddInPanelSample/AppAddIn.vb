@@ -176,9 +176,9 @@ Partial Class AppAddIn
             linePoints(1) = Geometry.CreatePoint(endPoint.X, endPoint.Y + 500)
 
             panelLine = drawing.Shapes.AddPolyline(linePoints)
-            panelLine.LinetypeNumber = 2
+            panelLine.LinetypeNumber = 1
             panelLine.ColorNumber = 4
-            panelLine.LinewidthNumber = 3
+            panelLine.LinewidthNumber = 2
 
         End Sub
         ' ----- utils -----
