@@ -68,8 +68,9 @@ Partial Class AppAddIn
         Dim panelCount As Integer = CInt(InputBox("パネル列数を入力してください"))
         Dim drawing As Drawing = doc.CurrentDrawing
         Dim simulator As PanelSimulater = New PanelSimulater(drawing, Geometry, panelCount, 0, 0, doc.SelectionManager, doc.LayerTable.RootLayer.ChildLayers)
+        '拡張機能on
+        simulator.isTheSandboxAvailable = True
         ' MsgBox(doc.SelectionManager.SelectedShapes.Count)
-        Dim l As Layer = doc.LayerTable.RootLayer
 
         doc.UndoManager.BeginUndoUnit()
         simulator.simulate()
@@ -189,14 +190,16 @@ Partial Class AppAddIn
         ' パネル配置ガイド線の上部50xmの所に境界の線を引く
         Public Sub writePanelLine()
             Dim shape As SelectedShape = Me.selectinoManager.SelectedShapes.Item(0)
-
-            Dim panelLine As PolylineShape
-
             Dim linePoints(1) As Point2d
-            Dim firstPoint As Point2d = getFirstPoint(shape.Shape)
-            Dim endPoint As Point2d = getEndPoint(shape.Shape)
-            linePoints(0) = Geometry.CreatePoint(firstPoint.X, firstPoint.Y + 500)
-            linePoints(1) = Geometry.CreatePoint(endPoint.X, endPoint.Y + 500)
+            Dim firstPoint As Point2d = Geometry.CreatePoint(getFirstPoint(shape.Shape).X, getFirstPoint(shape.Shape).Y + 500)
+            Dim endPoint As Point2d = Geometry.CreatePoint(getEndPoint(shape.Shape).X, getEndPoint(shape.Shape).Y + 500)
+            writePanelLine(firstPoint, endPoint)
+        End Sub
+        Public Sub writePanelLine(ByVal firstPoint As Point2d, ByVal endPoint As Point2d)
+            Dim panelLine As PolylineShape
+            Dim linePoints(1) As Point2d
+            linePoints(0) = Geometry.CreatePoint(firstPoint.X, firstPoint.Y)
+            linePoints(1) = Geometry.CreatePoint(endPoint.X, endPoint.Y)
 
             panelLine = drawing.Shapes.AddPolyline(linePoints)
             panelLine.LinetypeNumber = 1
@@ -240,13 +243,15 @@ Partial Class AppAddIn
             getLength = e.X - s.X
         End Function
 
-
     End Class
     ' パネル配置シミュレーター
     Public Class PanelSimulater
         Inherits PanelCreator
+        Public isTheSandboxAvailable As Boolean
+        Protected putPanelCounter As Integer
         Public Sub New(ByVal drawing As Drawing, ByVal geometry As Geometry, ByVal panelCounter As Integer, ByVal currentX As Double, ByVal currentY As Double, ByVal selectionManager As SelectionManager, ByRef layers As LayerCollection)
             MyBase.New(drawing, geometry, panelCounter, currentX, currentY, selectionManager, layers)
+            putPanelCounter = 0
         End Sub
         ' SelectedObjectの挙動確認
         Public Sub selectionSample()
@@ -298,6 +303,7 @@ Partial Class AppAddIn
         Protected Function putPanelFully(ByVal param As PutPanelVo) As PutPanelVo
 
             Dim ret As PutPanelVo
+            Dim putCount As Integer
 
             ' 長さに対して何個おけるか？
             Dim theNumberCanBePut As Integer = param.length / PanelCreator.width
@@ -309,10 +315,12 @@ Partial Class AppAddIn
             ' 置きたい個数おけるか
             If param.theNumberWantToPut > theNumberCanBePut Then
                 ' 置けない -> 置ける分だけ置く
+                putCount = theNumberCanBePut
                 PanelCreator.putPanel(drawing, Geometry, selectinoManager, theNumberCanBePut, param.startPoint, layers)
                 ret = New PutPanelVo(0, param.theNumberWantToPut - theNumberCanBePut, Nothing, True)
             Else
                 ' 置ける -> 置きたい数置く
+                putCount = param.theNumberWantToPut
                 PanelCreator.putPanel(drawing, Geometry, selectinoManager, param.theNumberWantToPut, param.startPoint, layers)
                 ' Todo 2m幅おく
                 Dim startPoint As Point2d
@@ -323,6 +331,38 @@ Partial Class AppAddIn
                 End If
                 Dim length = param.length - (startPoint.X - param.startPoint.X)
                 ret = New PutPanelVo(length, panelCounter, startPoint, False)
+            End If
+
+            ' 区画枠線描画
+            If Me.isTheSandboxAvailable = True Then
+                If param.theNumberWantToPut = panelCounter Then
+                    ' 区画開始線
+                    Dim lineFirstPoint As Point2d = Geometry.CreatePoint(param.startPoint.X, param.startPoint.Y + 500)
+                    Dim lineEndPoint As Point2d = Geometry.CreatePoint(param.startPoint.X + (width * putCount), param.startPoint.Y + 500)
+                    writePanelLine(lineFirstPoint, lineEndPoint)
+                End If
+                If param.theNumberWantToPut <= theNumberCanBePut Then
+                    ' 区画終了線
+                    ' パネル下線
+                    ' FIXME 区画間隔が7m固定
+                    Dim lineFirstPoint As Point2d = Geometry.CreatePoint(param.startPoint.X, param.startPoint.Y - 6500)
+                    Dim lineEndPoint As Point2d = Geometry.CreatePoint(param.startPoint.X + (width * putCount), param.startPoint.Y - 6500)
+                    writePanelLine(lineFirstPoint, lineEndPoint)
+                    ' 区画間の線
+                    lineFirstPoint = Geometry.CreatePoint(lineEndPoint.X + 1000, lineEndPoint.Y + 7000)
+                    lineEndPoint = Geometry.CreatePoint(lineEndPoint.X + 1000, lineEndPoint.Y)
+                    writePanelLine(lineFirstPoint, lineEndPoint)
+                End If
+            End If
+
+            ' 区画番号作成
+            If Me.isTheSandboxAvailable = True And param.theNumberWantToPut = panelCounter Then
+                putPanelCounter = putPanelCounter + 1
+                Dim textPointAry(1) As Point2d
+                textPointAry(0) = param.startPoint
+                textPointAry(1) = Geometry.CreatePoint(param.startPoint.X + 2000, param.startPoint.Y + 2000)
+                Dim areaNumber As LeadShape = Me.drawing.Shapes.AddLead("区画" + CStr(putPanelCounter), textPointAry)
+                areaNumber.FontHeight = 2500
             End If
 
             putPanelFully = ret
