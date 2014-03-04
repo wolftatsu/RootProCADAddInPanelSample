@@ -67,8 +67,9 @@ Partial Class AppAddIn
         Dim doc As Document = ActiveDocument
         Dim panelCount As Integer = CInt(InputBox("パネル列数を入力してください"))
         Dim drawing As Drawing = doc.CurrentDrawing
-        Dim simulator As PanelSimulater = New PanelSimulater(drawing, Geometry, panelCount, 0, 0, doc.SelectionManager)
+        Dim simulator As PanelSimulater = New PanelSimulater(drawing, Geometry, panelCount, 0, 0, doc.SelectionManager, doc.LayerTable.RootLayer.ChildLayers)
         ' MsgBox(doc.SelectionManager.SelectedShapes.Count)
+        Dim l As Layer = doc.LayerTable.RootLayer
 
         doc.UndoManager.BeginUndoUnit()
         simulator.simulate()
@@ -80,10 +81,21 @@ Partial Class AppAddIn
         Dim doc As Document = ActiveDocument
         Dim panelCount As Integer = CInt(InputBox("パネル列数を入力してください"))
         Dim drawing As Drawing = doc.CurrentDrawing
-        Dim simulator As PanelSimulater = New PanelSimulater(drawing, Geometry, panelCount, 0, 0, doc.SelectionManager)
+        Dim simulator As PanelSimulater = New PanelSimulater(drawing, Geometry, panelCount, 0, 0, doc.SelectionManager, Nothing)
         ' MsgBox(doc.SelectionManager.SelectedShapes.Count)
+        Dim rootLayer As Layer = doc.LayerTable.RootLayer
+
+        Dim l1 As Layer = rootLayer.ChildLayers(0)
+        Dim l2 As Layer = rootLayer.ChildLayers(1)
+        MsgBox(l2.Name)
+        'For Each l As Layer In rootLayer.ChildLayers
+        '    Dim str2 = l.Name()
+
+        'Next
 
         simulator.selectionSample()
+
+
     End Sub
     ' パネル作成クラス
     Public Class PanelCreator
@@ -92,6 +104,7 @@ Partial Class AppAddIn
         Protected drawing As Drawing
         Protected Geometry As Geometry
         Protected selectinoManager As SelectionManager
+        Protected layers As LayerCollection
         ' 置きたい列数（Simulatorの場合は、基底の列数）
         Public panelCounter As Integer
         Public angle As Integer = 0
@@ -99,21 +112,25 @@ Partial Class AppAddIn
         Public Const width As Double = 1660.0
         Public Const height As Double = 4150.0
         Public Const charaH As Double = 2500
-        Public Sub New(ByVal drawing As Drawing, ByVal geometry As Geometry, ByVal panelCounter As Integer, ByVal currentX As Double, ByVal currentY As Double, ByVal selectionManager As SelectionManager)
+        Public Sub New(ByVal drawing As Drawing, ByVal geometry As Geometry, ByVal panelCounter As Integer, ByVal currentX As Double, ByVal currentY As Double, ByVal selectionManager As SelectionManager, ByRef layers As LayerCollection)
             Me.currentX = currentX
             Me.currentY = currentY
             Me.panelCounter = panelCounter
             Me.drawing = drawing
             Me.Geometry = geometry
             Me.selectinoManager = selectionManager
+            Me.layers = layers
+        End Sub
+        Public Sub New(ByVal drawing As Drawing, ByVal geometry As Geometry, ByVal panelCounter As Integer, ByVal currentX As Double, ByVal currentY As Double, ByVal selectionManager As SelectionManager)
+            MyClass.New(drawing, geometry, panelCounter, currentX, currentY, selectionManager, Nothing)
         End Sub
         ' パネル配置
         ' 置きたい個数だけパネルを置く（静的メソッド版）
-        Public Shared Sub putPanel(ByVal drawing As Drawing, ByVal geometry As Geometry, ByVal selectionManager As SelectionManager, ByVal theNumberWantToPut As Integer, ByVal startPoint As Point2d)
+        Public Shared Sub putPanel(ByVal drawing As Drawing, ByVal geometry As Geometry, ByVal selectionManager As SelectionManager, ByVal theNumberWantToPut As Integer, ByVal startPoint As Point2d, ByRef layers As LayerCollection)
             Dim currentX As Double = startPoint.X
             Dim currentY As Double = startPoint.Y
             Dim panelCounter As Integer = theNumberWantToPut
-            Dim creator As PanelCreator = New PanelCreator(drawing, geometry, panelCounter, currentX, currentY, selectionManager)
+            Dim creator As PanelCreator = New PanelCreator(drawing, geometry, panelCounter, currentX, currentY, selectionManager, layers)
             creator.run(20)
             creator.run(10)
             creator.run(5)
@@ -132,6 +149,8 @@ Partial Class AppAddIn
                     panel.ColorNumber = 6
                     panel.LinewidthNumber = 3
                     panel.LinetypeNumber = 1
+                    panel.Layer = Me.getPanelLayer()
+
                     ' パネル選択
                     Me.selectinoManager.SelectShape(panel, SelectionCombineMode.Add)
 
@@ -140,6 +159,10 @@ Partial Class AppAddIn
                         Dim textPoint As Point2d = Geometry.CreatePoint(currentX, currentY - 1000)
                         textShape = drawing.Shapes.AddText(CStr(panelGroupCount) + "列", textPoint, 0)
                         textShape.FontHeight = charaH
+                        textShape.Layer = Me.getPanelLayer()
+                        textShape.ColorNumber = 1
+
+
                         ' 文字選択
                         Me.selectinoManager.SelectShape(textShape, SelectionCombineMode.Add)
                     End If
@@ -182,6 +205,16 @@ Partial Class AppAddIn
 
         End Sub
         ' ----- utils -----
+        ' パネルレイヤ取得
+        Public Function getPanelLayer() As Layer
+            For i As Integer = 0 To Me.layers.Count - 1
+                If Me.layers(i).Name = "パネル" Then
+                    Return layers(i)
+                End If
+            Next
+            Return layers(0)
+        End Function
+        ' ----- static-utils -----
         ' 図形の始点を取得する
         Public Shared Function getFirstPoint(ByVal shape As Shape) As Point2d
             getFirstPoint = shape.GetBoundingPoints(0)
@@ -206,12 +239,14 @@ Partial Class AppAddIn
             Dim e As Point2d = getEndPoint(shape)
             getLength = e.X - s.X
         End Function
+
+
     End Class
     ' パネル配置シミュレーター
     Public Class PanelSimulater
         Inherits PanelCreator
-        Public Sub New(ByVal drawing As Drawing, ByVal geometry As Geometry, ByVal panelCounter As Integer, ByVal currentX As Double, ByVal currentY As Double, ByVal selectionManager As SelectionManager)
-            MyBase.New(drawing, geometry, panelCounter, currentX, currentY, selectionManager)
+        Public Sub New(ByVal drawing As Drawing, ByVal geometry As Geometry, ByVal panelCounter As Integer, ByVal currentX As Double, ByVal currentY As Double, ByVal selectionManager As SelectionManager, ByRef layers As LayerCollection)
+            MyBase.New(drawing, geometry, panelCounter, currentX, currentY, selectionManager, layers)
         End Sub
         ' SelectedObjectの挙動確認
         Public Sub selectionSample()
@@ -274,11 +309,11 @@ Partial Class AppAddIn
             ' 置きたい個数おけるか
             If param.theNumberWantToPut > theNumberCanBePut Then
                 ' 置けない -> 置ける分だけ置く
-                PanelCreator.putPanel(drawing, Geometry, selectinoManager, theNumberCanBePut, param.startPoint)
+                PanelCreator.putPanel(drawing, Geometry, selectinoManager, theNumberCanBePut, param.startPoint, layers)
                 ret = New PutPanelVo(0, param.theNumberWantToPut - theNumberCanBePut, Nothing, True)
             Else
                 ' 置ける -> 置きたい数置く
-                PanelCreator.putPanel(drawing, Geometry, selectinoManager, param.theNumberWantToPut, param.startPoint)
+                PanelCreator.putPanel(drawing, Geometry, selectinoManager, param.theNumberWantToPut, param.startPoint, layers)
                 ' Todo 2m幅おく
                 Dim startPoint As Point2d
                 startPoint = New Point2d(param.startPoint.X + (width * param.theNumberWantToPut) + 2000, param.startPoint.Y)
@@ -293,6 +328,7 @@ Partial Class AppAddIn
             putPanelFully = ret
 
         End Function
+
     End Class
     ' パネル設置メソッドのパラメタクラス
     Public Class PutPanelVo
