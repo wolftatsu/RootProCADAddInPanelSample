@@ -11,9 +11,8 @@ Partial Class AppAddIn
         CommandManager.AddMacroCommand("太陽光パネル作成", AddressOf Me.MacroCommand)
         CommandManager.AddMacroCommand("パネル枠線作成", AddressOf Me.MacroCommand2)
         CommandManager.AddMacroCommand("パネル設置シミュレーション", AddressOf Me.MacroCommand3)
-        CommandManager.AddMacroCommand("TestSelectionManager", AddressOf Me.TestSelectionManager)
+        ' CommandManager.AddMacroCommand("TestSelectionManager", AddressOf Me.TestSelectionManager)
     End Sub
-
     Private Sub AppAddIn_Shutdown(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Shutdown
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand)
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand2)
@@ -205,6 +204,7 @@ Partial Class AppAddIn
             panelLine.LinetypeNumber = 1
             panelLine.ColorNumber = 4
             panelLine.LinewidthNumber = 2
+            panelLine.Layer = Me.getPanelLayer()
 
         End Sub
         ' ----- utils -----
@@ -337,7 +337,7 @@ Partial Class AppAddIn
             If Me.isTheSandboxAvailable = True Then
                 If param.theNumberWantToPut = panelCounter Then
                     ' 区画開始線
-                    Dim lineFirstPoint As Point2d = Geometry.CreatePoint(param.startPoint.X, param.startPoint.Y + 500)
+                    Dim lineFirstPoint As Point2d = Geometry.CreatePoint(param.startPoint.X - 1000, param.startPoint.Y + 500)
                     Dim lineEndPoint As Point2d = Geometry.CreatePoint(param.startPoint.X + (width * putCount), param.startPoint.Y + 500)
                     writePanelLine(lineFirstPoint, lineEndPoint)
                 End If
@@ -346,11 +346,11 @@ Partial Class AppAddIn
                     ' パネル下線
                     ' FIXME 区画間隔が7m固定
                     Dim lineFirstPoint As Point2d = Geometry.CreatePoint(param.startPoint.X, param.startPoint.Y - 6500)
-                    Dim lineEndPoint As Point2d = Geometry.CreatePoint(param.startPoint.X + (width * putCount), param.startPoint.Y - 6500)
+                    Dim lineEndPoint As Point2d = Geometry.CreatePoint(param.startPoint.X + (width * putCount) + 1000, param.startPoint.Y - 6500)
                     writePanelLine(lineFirstPoint, lineEndPoint)
                     ' 区画間の線
-                    lineFirstPoint = Geometry.CreatePoint(lineEndPoint.X + 1000, lineEndPoint.Y + 7000)
-                    lineEndPoint = Geometry.CreatePoint(lineEndPoint.X + 1000, lineEndPoint.Y)
+                    lineFirstPoint = Geometry.CreatePoint(lineEndPoint.X, lineEndPoint.Y + 7000)
+                    lineEndPoint = Geometry.CreatePoint(lineEndPoint.X, lineEndPoint.Y)
                     writePanelLine(lineFirstPoint, lineEndPoint)
                 End If
             End If
@@ -363,6 +363,7 @@ Partial Class AppAddIn
                 textPointAry(1) = Geometry.CreatePoint(param.startPoint.X + 2000, param.startPoint.Y + 2000)
                 Dim areaNumber As LeadShape = Me.drawing.Shapes.AddLead("区画" + CStr(putPanelCounter), textPointAry)
                 areaNumber.FontHeight = 2500
+                areaNumber.Layer = Me.getPanelLayer()
             End If
 
             putPanelFully = ret
