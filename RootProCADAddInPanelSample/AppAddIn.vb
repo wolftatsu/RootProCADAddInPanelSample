@@ -40,7 +40,7 @@ Partial Class AppAddIn
         Dim currentY As Double = startY
 
         Dim panelCounter As Integer = panelCount
-        Dim creator As PanelCreator = New PanelCreator(drawing, Geometry, panelCounter, currentX, currentY, doc.SelectionManager)
+        Dim creator As PanelCreator = New PanelCreator(drawing, Geometry, panelCounter, currentX, currentY, doc.SelectionManager, doc.LayerTable.RootLayer.ChildLayers)
 
         creator.run(20)
         creator.run(10)
