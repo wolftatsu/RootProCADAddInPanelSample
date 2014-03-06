@@ -10,13 +10,15 @@ Partial Class AppAddIn
     Private Sub AppAddIn_Startup(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Startup
         CommandManager.AddMacroCommand("太陽光パネル作成", AddressOf Me.MacroCommand)
         CommandManager.AddMacroCommand("パネル枠線作成", AddressOf Me.MacroCommand2)
-        CommandManager.AddMacroCommand("パネル設置シミュレーション", AddressOf Me.MacroCommand3)
+        CommandManager.AddMacroCommand("パネル設置シミュレーション（上から順に配置）", AddressOf Me.MacroCommand3)
+        CommandManager.AddMacroCommand("パネル設置シミュレーション（下から順に配置）", AddressOf Me.MacroCommand4)
         ' CommandManager.AddMacroCommand("TestSelectionManager", AddressOf Me.TestSelectionManager)
     End Sub
     Private Sub AppAddIn_Shutdown(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Shutdown
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand)
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand2)
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand3)
+        CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand4)
     End Sub
     ' パネル作成
     Private Sub MacroCommand()
@@ -69,6 +71,7 @@ Partial Class AppAddIn
         Dim simulator As PanelSimulater = New PanelSimulater(drawing, Geometry, panelCount, 0, 0, doc.SelectionManager, doc.LayerTable.RootLayer.ChildLayers)
         '拡張機能on
         simulator.isTheSandboxAvailable = True
+        simulator.orderByAsc = True
         ' MsgBox(doc.SelectionManager.SelectedShapes.Count)
 
         doc.UndoManager.BeginUndoUnit()
@@ -76,6 +79,24 @@ Partial Class AppAddIn
         doc.UndoManager.EndUndoUnit()
 
     End Sub
+    '   パネル設置シミュレーション実行（下から配置）
+    Private Sub MacroCommand4()
+        On Error Resume Next
+        Dim doc As Document = ActiveDocument
+        Dim panelCount As Integer = CInt(InputBox("パネル列数を入力してください"))
+        Dim drawing As Drawing = doc.CurrentDrawing
+        Dim simulator As PanelSimulater = New PanelSimulater(drawing, Geometry, panelCount, 0, 0, doc.SelectionManager, doc.LayerTable.RootLayer.ChildLayers)
+        '拡張機能on
+        simulator.isTheSandboxAvailable = True
+        simulator.orderByAsc = False
+        ' MsgBox(doc.SelectionManager.SelectedShapes.Count)
+
+        doc.UndoManager.BeginUndoUnit()
+        simulator.simulate()
+        doc.UndoManager.EndUndoUnit()
+
+    End Sub
+
     Private Sub TestSelectionManager()
         On Error Resume Next
         Dim doc As Document = ActiveDocument
@@ -249,6 +270,7 @@ Partial Class AppAddIn
         Inherits PanelCreator
         Public isTheSandboxAvailable As Boolean
         Protected putPanelCounter As Integer
+        Public orderByAsc As Boolean
         Public Sub New(ByVal drawing As Drawing, ByVal geometry As Geometry, ByVal panelCounter As Integer, ByVal currentX As Double, ByVal currentY As Double, ByVal selectionManager As SelectionManager, ByRef layers As LayerCollection)
             MyBase.New(drawing, geometry, panelCounter, currentX, currentY, selectionManager, layers)
             putPanelCounter = 0
@@ -261,7 +283,7 @@ Partial Class AppAddIn
             '    MsgBox(getFirstPoint(s).Y)
             'Next
 
-            Dim col As SelectedLineCollection = New SelectedLineCollection(selectinoManager.SelectedShapes)
+            Dim col As SelectedLineCollection = New SelectedLineCollection(selectinoManager.SelectedShapes, True)
             MsgBox(PanelCreator.getFirstPoint(col.getCurrent()).Y)
             MsgBox(PanelCreator.getFirstPoint(col.getNext()).Y)
             MsgBox(PanelCreator.getFirstPoint(col.getNext()).Y)
@@ -271,7 +293,7 @@ Partial Class AppAddIn
         ' 選択されたパネル間隔線に沿って、入力された列数分のパネルを配置する
         Public Sub simulate()
 
-            Dim lines As SelectedLineCollection = New SelectedLineCollection(selectinoManager.SelectedShapes)
+            Dim lines As SelectedLineCollection = New SelectedLineCollection(selectinoManager.SelectedShapes, Me.orderByAsc)
             Dim basePanelCount As Integer = Me.panelCounter
 
             Dim param As PutPanelVo = New PutPanelVo(PanelCreator.getLength(lines.getCurrent()), panelCounter, PanelCreator.getFirstPoint(lines.getCurrent()), Nothing)
@@ -337,20 +359,20 @@ Partial Class AppAddIn
             If Me.isTheSandboxAvailable = True Then
                 If param.theNumberWantToPut = panelCounter Then
                     ' 区画開始線
-                    Dim lineFirstPoint As Point2d = Geometry.CreatePoint(param.startPoint.X - 1000, param.startPoint.Y + 500)
-                    Dim lineEndPoint As Point2d = Geometry.CreatePoint(param.startPoint.X + (width * putCount), param.startPoint.Y + 500)
+                    Dim lineFirstPoint As Point2d = Geometry.CreatePoint(param.startPoint.X - 1000, param.startPoint.Y + IIf(Me.orderByAsc, 500, -6500))
+                    Dim lineEndPoint As Point2d = Geometry.CreatePoint(param.startPoint.X + (width * putCount), param.startPoint.Y + IIf(Me.orderByAsc, 500, -6500))
                     writePanelLine(lineFirstPoint, lineEndPoint)
                 End If
                 If param.theNumberWantToPut <= theNumberCanBePut Then
                     ' 区画終了線
                     ' パネル下線
                     ' FIXME 区画間隔が7m固定
-                    Dim lineFirstPoint As Point2d = Geometry.CreatePoint(param.startPoint.X, param.startPoint.Y - 6500)
-                    Dim lineEndPoint As Point2d = Geometry.CreatePoint(param.startPoint.X + (width * putCount) + 1000, param.startPoint.Y - 6500)
+                    Dim lineFirstPoint As Point2d = Geometry.CreatePoint(param.startPoint.X, param.startPoint.Y + IIf(Me.orderByAsc, -6500, 500))
+                    Dim lineEndPoint As Point2d = Geometry.CreatePoint(param.startPoint.X + (width * putCount) + 1000, param.startPoint.Y + IIf(Me.orderByAsc, -6500, 500))
                     writePanelLine(lineFirstPoint, lineEndPoint)
                     ' 区画間の線
-                    lineFirstPoint = Geometry.CreatePoint(lineEndPoint.X, lineEndPoint.Y + 7000)
-                    lineEndPoint = Geometry.CreatePoint(lineEndPoint.X, lineEndPoint.Y)
+                    lineFirstPoint = Geometry.CreatePoint(lineEndPoint.X, lineEndPoint.Y + IIf(Me.orderByAsc, 7000, 0))
+                    lineEndPoint = Geometry.CreatePoint(lineEndPoint.X, lineEndPoint.Y + IIf(Me.orderByAsc, 0, -7000))
                     writePanelLine(lineFirstPoint, lineEndPoint)
                 End If
             End If
@@ -389,11 +411,11 @@ Partial Class AppAddIn
         'Protected lineArray() As Shape
         Protected lineArray = New List(Of SortableShape)
         Protected currentIndex As Integer
-        Public Sub New(ByVal lines As SelectedShapeCollection)
+        Public Sub New(ByVal lines As SelectedShapeCollection, ByVal orderByAsc As Boolean)
             For i = 0 To lines.Count - 1
                 'ReDim Preserve lineArray(i)
                 'lineArray(i) = lines.Item(i).Shape
-                lineArray.add(New SortableShape(PanelCreator.getFirstPoint(lines.Item(i).Shape).Y, lines.Item(i).Shape))
+                lineArray.add(New SortableShape(PanelCreator.getFirstPoint(lines.Item(i).Shape).Y, lines.Item(i).Shape, orderByAsc))
             Next
             lineArray.Sort()
             currentIndex = 0
@@ -419,18 +441,22 @@ Partial Class AppAddIn
         Implements IComparable(Of SortableShape)
         Public y As Double
         Public shape As Shape
-        Public Sub New(ByVal y As Double, ByVal shape As Shape)
+        Public orderByAsc As Boolean
+        Public Sub New(ByVal y As Double, ByVal shape As Shape, ByVal orderByAsc As Boolean)
             Me.y = y
             Me.shape = shape
+            Me.orderByAsc = orderByAsc
         End Sub
         Public Function CompareTo(ByVal obj As SortableShape) As Integer Implements System.IComparable(Of SortableShape).CompareTo
+
             If Me.y.CompareTo(obj.y) < 0 Then
-                Return 1
+                Return IIf(Me.orderByAsc = True, 1, -1)
             ElseIf Me.y.CompareTo(obj.y) > 0 Then
-                Return -2
+                Return IIf(Me.orderByAsc = True, -1, 1)
             Else
                 Return 0
             End If
+
 
         End Function
     End Class
