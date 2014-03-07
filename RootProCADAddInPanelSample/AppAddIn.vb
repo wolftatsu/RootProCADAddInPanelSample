@@ -10,6 +10,7 @@ Partial Class AppAddIn
     Private Sub AppAddIn_Startup(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Startup
         CommandManager.AddMacroCommand("太陽光パネル作成", AddressOf Me.MacroCommand)
         CommandManager.AddMacroCommand("パネル枠線作成", AddressOf Me.MacroCommand2)
+        CommandManager.AddMacroCommand("30センチ道路作成", AddressOf Me.MacroCommand6)
         CommandManager.AddMacroCommand("パネル設置シミュレーション（上から順に配置）", AddressOf Me.MacroCommand3)
         CommandManager.AddMacroCommand("パネル設置シミュレーション（下から順に配置）", AddressOf Me.MacroCommand4)
         CommandManager.AddMacroCommand("区画番号付番", AddressOf Me.MacroCommand5)
@@ -21,6 +22,7 @@ Partial Class AppAddIn
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand3)
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand4)
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand5)
+        CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand6)
     End Sub
     ' パネル作成
     Private Sub MacroCommand()
@@ -61,8 +63,8 @@ Partial Class AppAddIn
 
         Dim drawing As Drawing = doc.CurrentDrawing
         Dim points(1) As Point2d
-        Dim creator As PanelCreator = New PanelCreator(drawing, Geometry, 0, 0, 0, doc.SelectionManager)
-        creator.writePanelLine()
+        Dim creator As PanelCreator = New PanelCreator(drawing, Geometry, 0, 0, 0, doc.SelectionManager, doc.LayerTable.RootLayer.ChildLayers)
+        creator.writePanelLine(500)
     End Sub
     '   パネル設置シミュレーション実行
     Private Sub MacroCommand3()
@@ -142,8 +144,16 @@ Partial Class AppAddIn
         doc.UndoManager.EndUndoUnit()
 
     End Sub
+    ' 30cm道路作成
+    Private Sub MacroCommand6()
+        On Error Resume Next
+        Dim doc As Document = ActiveDocument
 
-
+        Dim drawing As Drawing = doc.CurrentDrawing
+        Dim points(1) As Point2d
+        Dim creator As PanelCreator = New PanelCreator(drawing, Geometry, 0, 0, 0, doc.SelectionManager, doc.LayerTable.RootLayer.ChildLayers)
+        creator.writePanelLine(300)
+    End Sub
 
     Private Sub TestSelectionManager()
         On Error Resume Next
@@ -255,12 +265,12 @@ Partial Class AppAddIn
             createAPanel = panelPoints
 
         End Function
-        ' パネル配置ガイド線の上部50xmの所に境界の線を引く
-        Public Sub writePanelLine()
+        ' パネル配置ガイド線の上部xcmの所に境界の線を引く
+        Public Sub writePanelLine(ByVal top As Integer)
             Dim shape As SelectedShape = Me.selectinoManager.SelectedShapes.Item(0)
             Dim linePoints(1) As Point2d
-            Dim firstPoint As Point2d = Geometry.CreatePoint(getFirstPoint(shape.Shape).X, getFirstPoint(shape.Shape).Y + 500)
-            Dim endPoint As Point2d = Geometry.CreatePoint(getEndPoint(shape.Shape).X, getEndPoint(shape.Shape).Y + 500)
+            Dim firstPoint As Point2d = Geometry.CreatePoint(getFirstPoint(shape.Shape).X, getFirstPoint(shape.Shape).Y + top)
+            Dim endPoint As Point2d = Geometry.CreatePoint(getEndPoint(shape.Shape).X, getEndPoint(shape.Shape).Y + top)
             writePanelLine(firstPoint, endPoint)
         End Sub
         Public Sub writePanelLine(ByVal firstPoint As Point2d, ByVal endPoint As Point2d)
