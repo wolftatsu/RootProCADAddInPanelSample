@@ -12,6 +12,7 @@ Partial Class AppAddIn
         CommandManager.AddMacroCommand("パネル枠線作成", AddressOf Me.MacroCommand2)
         CommandManager.AddMacroCommand("パネル設置シミュレーション（上から順に配置）", AddressOf Me.MacroCommand3)
         CommandManager.AddMacroCommand("パネル設置シミュレーション（下から順に配置）", AddressOf Me.MacroCommand4)
+        CommandManager.AddMacroCommand("区画番号付番", AddressOf Me.MacroCommand5)
         ' CommandManager.AddMacroCommand("TestSelectionManager", AddressOf Me.TestSelectionManager)
     End Sub
     Private Sub AppAddIn_Shutdown(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Shutdown
@@ -19,6 +20,7 @@ Partial Class AppAddIn
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand2)
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand3)
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand4)
+        CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand5)
     End Sub
     ' パネル作成
     Private Sub MacroCommand()
@@ -96,6 +98,49 @@ Partial Class AppAddIn
         doc.UndoManager.EndUndoUnit()
 
     End Sub
+
+    Private Sub MacroCommand5()
+        On Error Resume Next
+        Dim doc As Document = ActiveDocument
+        Dim drawing As Drawing = doc.CurrentDrawing
+
+        Dim names As SelectedLineCollection = New SelectedLineCollection(doc.SelectionManager.SelectedShapes, False)
+        Dim putPanelCounter As Integer = 0
+        Dim simulator As PanelSimulater = New PanelSimulater(drawing, Geometry, 52, 0, 0, doc.SelectionManager, doc.LayerTable.RootLayer.ChildLayers)
+        '拡張機能on
+        simulator.isTheSandboxAvailable = True
+        simulator.orderByAsc = False
+
+
+        Dim shape As Shape = names.getCurrent()
+
+        doc.UndoManager.BeginUndoUnit()
+
+        Do While names.hasNext
+
+            putPanelCounter = putPanelCounter + 1
+
+            Dim linePoints(1) As Point2d
+            linePoints(0) = PanelCreator.getFirstPoint(shape)
+            linePoints(1) = Geometry.CreatePoint(linePoints(0).X + 2000, linePoints(0).Y + 2000)
+            Dim areaNumber As LeadShape = drawing.Shapes.AddLead("区画" + CStr(putPanelCounter), linePoints)
+
+            areaNumber.FontHeight = 2500
+            areaNumber.Layer = simulator.getPanelLayer()
+
+            shape.Delete()
+
+            shape = names.getNext()
+
+            ' areaNumber.Layer = Me.getPanelLayer()
+
+        Loop
+
+        doc.UndoManager.EndUndoUnit()
+
+    End Sub
+
+
 
     Private Sub TestSelectionManager()
         On Error Resume Next
