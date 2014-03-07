@@ -98,14 +98,17 @@ Partial Class AppAddIn
         doc.UndoManager.EndUndoUnit()
 
     End Sub
-
+    ' 区画番号付番
     Private Sub MacroCommand5()
         On Error Resume Next
         Dim doc As Document = ActiveDocument
         Dim drawing As Drawing = doc.CurrentDrawing
 
         Dim names As SelectedLineCollection = New SelectedLineCollection(doc.SelectionManager.SelectedShapes, False)
-        Dim putPanelCounter As Integer = 0
+        Dim putPanelCounter As Integer = CInt(InputBox("開始番号")) - 1
+        If putPanelCounter < 1 Then
+            putPanelCounter = 0
+        End If
         Dim simulator As PanelSimulater = New PanelSimulater(drawing, Geometry, 52, 0, 0, doc.SelectionManager, doc.LayerTable.RootLayer.ChildLayers)
         '拡張機能on
         simulator.isTheSandboxAvailable = True
