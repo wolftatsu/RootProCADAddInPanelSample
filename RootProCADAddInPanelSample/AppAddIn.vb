@@ -66,7 +66,9 @@ Partial Class AppAddIn
         Dim drawing As Drawing = doc.CurrentDrawing
         Dim points(1) As Point2d
         Dim creator As PanelCreator = New PanelCreator(drawing, Geometry, 0, 0, 0, doc.SelectionManager, doc.LayerTable.RootLayer.ChildLayers)
+        doc.UndoManager.BeginUndoUnit()
         creator.writePanelLine(500)
+        doc.UndoManager.EndUndoUnit()
     End Sub
     '   パネル設置シミュレーション実行
     Private Sub MacroCommand3()
@@ -154,7 +156,10 @@ Partial Class AppAddIn
         Dim drawing As Drawing = doc.CurrentDrawing
         Dim points(1) As Point2d
         Dim creator As PanelCreator = New PanelCreator(drawing, Geometry, 0, 0, 0, doc.SelectionManager, doc.LayerTable.RootLayer.ChildLayers)
+        doc.UndoManager.BeginUndoUnit()
         creator.writePanelLine(300)
+        doc.UndoManager.EndUndoUnit()
+
     End Sub
     ' 区画線（縦）作成
     Private Sub MacroCommand7()
@@ -164,7 +169,9 @@ Partial Class AppAddIn
         Dim drawing As Drawing = doc.CurrentDrawing
         Dim points(1) As Point2d
         Dim creator As PanelCreator = New PanelCreator(drawing, Geometry, 0, 0, 0, doc.SelectionManager, doc.LayerTable.RootLayer.ChildLayers)
+        doc.UndoManager.BeginUndoUnit()
         creator.writePanelLineVartical()
+        doc.UndoManager.EndUndoUnit()
     End Sub
     Private Sub TestSelectionManager()
         On Error Resume Next
