@@ -9,7 +9,8 @@ Imports RootPro.RootProCAD.UI
 Partial Class AppAddIn
     Private Sub AppAddIn_Startup(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Startup
         CommandManager.AddMacroCommand("太陽光パネル作成", AddressOf Me.MacroCommand)
-        CommandManager.AddMacroCommand("パネル枠線作成", AddressOf Me.MacroCommand2)
+        CommandManager.AddMacroCommand("区画枠線作成", AddressOf Me.MacroCommand2)
+        CommandManager.AddMacroCommand("区画枠線（縦）作成", AddressOf Me.MacroCommand7)
         CommandManager.AddMacroCommand("30センチ道路作成", AddressOf Me.MacroCommand6)
         CommandManager.AddMacroCommand("パネル設置シミュレーション（上から順に配置）", AddressOf Me.MacroCommand3)
         CommandManager.AddMacroCommand("パネル設置シミュレーション（下から順に配置）", AddressOf Me.MacroCommand4)
@@ -23,6 +24,7 @@ Partial Class AppAddIn
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand4)
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand5)
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand6)
+        CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand7)
     End Sub
     ' パネル作成
     Private Sub MacroCommand()
@@ -154,7 +156,16 @@ Partial Class AppAddIn
         Dim creator As PanelCreator = New PanelCreator(drawing, Geometry, 0, 0, 0, doc.SelectionManager, doc.LayerTable.RootLayer.ChildLayers)
         creator.writePanelLine(300)
     End Sub
+    ' 区画線（縦）作成
+    Private Sub MacroCommand7()
+        On Error Resume Next
+        Dim doc As Document = ActiveDocument
 
+        Dim drawing As Drawing = doc.CurrentDrawing
+        Dim points(1) As Point2d
+        Dim creator As PanelCreator = New PanelCreator(drawing, Geometry, 0, 0, 0, doc.SelectionManager, doc.LayerTable.RootLayer.ChildLayers)
+        creator.writePanelLineVartical()
+    End Sub
     Private Sub TestSelectionManager()
         On Error Resume Next
         Dim doc As Document = ActiveDocument
@@ -270,9 +281,18 @@ Partial Class AppAddIn
             Dim shape As SelectedShape = Me.selectinoManager.SelectedShapes.Item(0)
             Dim linePoints(1) As Point2d
             Dim firstPoint As Point2d = Geometry.CreatePoint(getFirstPoint(shape.Shape).X, getFirstPoint(shape.Shape).Y + top)
-            Dim endPoint As Point2d = Geometry.CreatePoint(getEndPoint(shape.Shape).X, getEndPoint(shape.Shape).Y + top)
+            Dim endPoint As Point2d = Geometry.CreatePoint(getEndPoint(shape.Shape).X + 1000, getEndPoint(shape.Shape).Y + top)
             writePanelLine(firstPoint, endPoint)
         End Sub
+        Public Sub writePanelLineVartical()
+            Dim shape As SelectedShape = Me.selectinoManager.SelectedShapes.Item(0)
+            Dim linePoints(1) As Point2d
+            Dim firstPoint As Point2d = Geometry.CreatePoint(getEndPoint(shape.Shape).X + 1000, getEndPoint(shape.Shape).Y + 500)
+            Dim endPoint As Point2d = Geometry.CreatePoint(getEndPoint(shape.Shape).X + 1000, getEndPoint(shape.Shape).Y - 7000)
+            writePanelLine(firstPoint, endPoint)
+
+        End Sub
+
         Public Sub writePanelLine(ByVal firstPoint As Point2d, ByVal endPoint As Point2d)
             Dim panelLine As PolylineShape
             Dim linePoints(1) As Point2d
