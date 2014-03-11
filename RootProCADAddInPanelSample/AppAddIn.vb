@@ -119,32 +119,32 @@ Partial Class AppAddIn
         '拡張機能on
         simulator.isTheSandboxAvailable = True
         simulator.orderByAsc = False
-
-
-        Dim shape As Shape = names.getCurrent()
+        Dim e As Boolean
+        Dim shape As Shape
 
         doc.UndoManager.BeginUndoUnit()
-
-        Do While names.hasNext
+        Do
 
             putPanelCounter = putPanelCounter + 1
+            If e = False Then
+                shape = names.getCurrent()
+                e = True
+            Else
+                shape = names.getNext()
+            End If
 
             Dim linePoints(1) As Point2d
-            linePoints(0) = PanelCreator.getFirstPoint(shape)
+            linePoints(0) = Geometry.CreatePoint(PanelCreator.getFirstPoint(shape).X, PanelCreator.getFirstPoint(shape).Y - 4160)
             linePoints(1) = Geometry.CreatePoint(linePoints(0).X + 2000, linePoints(0).Y + 2000)
             Dim areaNumber As LeadShape = drawing.Shapes.AddLead("区画" + CStr(putPanelCounter), linePoints)
 
             areaNumber.FontHeight = 2500
             areaNumber.Layer = simulator.getPanelLayer()
-
             shape.Delete()
-
-            shape = names.getNext()
-
-            ' areaNumber.Layer = Me.getPanelLayer()
-
+            If names.hasNext = False Then
+                Exit Do
+            End If
         Loop
-
         doc.UndoManager.EndUndoUnit()
 
     End Sub
@@ -519,6 +519,9 @@ Partial Class AppAddIn
         End Function
         Public Function hasNext() As Boolean
             Return Not currentIndex = lineArray.count - 1
+        End Function
+        Public Function getIdx() As Integer
+            Return currentIndex
         End Function
     End Class
     ' shapeをy軸でソート可能にラップしたクラス
