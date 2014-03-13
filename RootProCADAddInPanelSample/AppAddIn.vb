@@ -14,6 +14,8 @@ Partial Class AppAddIn
         CommandManager.AddMacroCommand("30センチ道路作成", AddressOf Me.MacroCommand6)
         CommandManager.AddMacroCommand("パネル設置シミュレーション（上から順に配置）", AddressOf Me.MacroCommand3)
         CommandManager.AddMacroCommand("パネル設置シミュレーション（下から順に配置）", AddressOf Me.MacroCommand4)
+        CommandManager.AddMacroCommand("パネル設置シミュレーション（1列ずつ）（上から順に配置）", AddressOf Me.MacroCommand8)
+        CommandManager.AddMacroCommand("パネル設置シミュレーション（1列ずつ）（下から順に配置）", AddressOf Me.MacroCommand9)
         CommandManager.AddMacroCommand("区画番号付番", AddressOf Me.MacroCommand5)
         ' CommandManager.AddMacroCommand("TestSelectionManager", AddressOf Me.TestSelectionManager)
     End Sub
@@ -25,6 +27,8 @@ Partial Class AppAddIn
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand5)
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand6)
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand7)
+        CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand8)
+        CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand9)
     End Sub
     ' パネル作成
     Private Sub MacroCommand()
@@ -80,7 +84,6 @@ Partial Class AppAddIn
         '拡張機能on
         simulator.isTheSandboxAvailable = True
         simulator.orderByAsc = True
-        ' MsgBox(doc.SelectionManager.SelectedShapes.Count)
 
         doc.UndoManager.BeginUndoUnit()
         simulator.simulate()
@@ -97,7 +100,6 @@ Partial Class AppAddIn
         '拡張機能on
         simulator.isTheSandboxAvailable = True
         simulator.orderByAsc = False
-        ' MsgBox(doc.SelectionManager.SelectedShapes.Count)
 
         doc.UndoManager.BeginUndoUnit()
         simulator.simulate()
@@ -173,6 +175,41 @@ Partial Class AppAddIn
         creator.writePanelLineVartical()
         doc.UndoManager.EndUndoUnit()
     End Sub
+    '   パネル設置シミュレーション実行（1列ずつ配置）
+    Private Sub MacroCommand8()
+        On Error Resume Next
+        Dim doc As Document = ActiveDocument
+        Dim panelCount As Integer = CInt(InputBox("パネル列数を入力してください"))
+        Dim drawing As Drawing = doc.CurrentDrawing
+        Dim simulator As PanelSimulater = New PanelSimulater(drawing, Geometry, panelCount, 0, 0, doc.SelectionManager, doc.LayerTable.RootLayer.ChildLayers)
+        '拡張機能on
+        simulator.isTheSandboxAvailable = True
+        simulator.orderByAsc = True
+        simulator.grouping = False
+
+        doc.UndoManager.BeginUndoUnit()
+        simulator.simulate()
+        doc.UndoManager.EndUndoUnit()
+
+    End Sub
+    '   パネル設置シミュレーション実行（下から配置）（1列ずつ配置）
+    Private Sub MacroCommand9()
+        On Error Resume Next
+        Dim doc As Document = ActiveDocument
+        Dim panelCount As Integer = CInt(InputBox("パネル列数を入力してください"))
+        Dim drawing As Drawing = doc.CurrentDrawing
+        Dim simulator As PanelSimulater = New PanelSimulater(drawing, Geometry, panelCount, 0, 0, doc.SelectionManager, doc.LayerTable.RootLayer.ChildLayers)
+        '拡張機能on
+        simulator.isTheSandboxAvailable = True
+        simulator.orderByAsc = False
+        simulator.grouping = False
+
+        doc.UndoManager.BeginUndoUnit()
+        simulator.simulate()
+        doc.UndoManager.EndUndoUnit()
+
+    End Sub
+
     Private Sub TestSelectionManager()
         On Error Resume Next
         Dim doc As Document = ActiveDocument
@@ -223,14 +260,16 @@ Partial Class AppAddIn
         End Sub
         ' パネル配置
         ' 置きたい個数だけパネルを置く（静的メソッド版）
-        Public Shared Sub putPanel(ByVal drawing As Drawing, ByVal geometry As Geometry, ByVal selectionManager As SelectionManager, ByVal theNumberWantToPut As Integer, ByVal startPoint As Point2d, ByRef layers As LayerCollection)
+        Public Shared Sub putPanel(ByVal drawing As Drawing, ByVal geometry As Geometry, ByVal selectionManager As SelectionManager, ByVal theNumberWantToPut As Integer, ByVal startPoint As Point2d, ByRef layers As LayerCollection, Optional ByRef grouping As Boolean = True)
             Dim currentX As Double = startPoint.X
             Dim currentY As Double = startPoint.Y
             Dim panelCounter As Integer = theNumberWantToPut
             Dim creator As PanelCreator = New PanelCreator(drawing, geometry, panelCounter, currentX, currentY, selectionManager, layers)
-            creator.run(20)
-            creator.run(10)
-            creator.run(5)
+            If grouping = True Then
+                creator.run(20)
+                creator.run(10)
+                creator.run(5)
+            End If
             creator.run(1)
         End Sub
         ' 置きたい個数だけパネルを置く（動的メソッド版）
@@ -353,9 +392,15 @@ Partial Class AppAddIn
     ' パネル配置シミュレーター
     Public Class PanelSimulater
         Inherits PanelCreator
-        Public isTheSandboxAvailable As Boolean
         Protected putPanelCounter As Integer
+        ' --- Optional --- 
+        ' 拡張機能を使用するか否か
+        Public isTheSandboxAvailable As Boolean
+        ' 選択オブジェクトをy軸上の上から取り出すか否か
         Public orderByAsc As Boolean
+        ' パネル表示を纏めるか否か
+        Public grouping As Boolean = True
+
         Public Sub New(ByVal drawing As Drawing, ByVal geometry As Geometry, ByVal panelCounter As Integer, ByVal currentX As Double, ByVal currentY As Double, ByVal selectionManager As SelectionManager, ByRef layers As LayerCollection)
             MyBase.New(drawing, geometry, panelCounter, currentX, currentY, selectionManager, layers)
             putPanelCounter = 0
@@ -423,12 +468,13 @@ Partial Class AppAddIn
             If param.theNumberWantToPut > theNumberCanBePut Then
                 ' 置けない -> 置ける分だけ置く
                 putCount = theNumberCanBePut
-                PanelCreator.putPanel(drawing, Geometry, selectinoManager, theNumberCanBePut, param.startPoint, layers)
+                PanelCreator.putPanel(drawing, Geometry, selectinoManager, theNumberCanBePut, param.startPoint, layers, grouping)
                 ret = New PutPanelVo(0, param.theNumberWantToPut - theNumberCanBePut, Nothing, True)
             Else
                 ' 置ける -> 置きたい数置く
                 putCount = param.theNumberWantToPut
-                PanelCreator.putPanel(drawing, Geometry, selectinoManager, param.theNumberWantToPut, param.startPoint, layers)
+                PanelCreator.putPanel(drawing, Geometry, selectinoManager, param.theNumberWantToPut, param.startPoint, layers, grouping)
+
                 ' Todo 2m幅おく
                 Dim startPoint As Point2d
                 startPoint = New Point2d(param.startPoint.X + (width * param.theNumberWantToPut) + 2000, param.startPoint.Y)
