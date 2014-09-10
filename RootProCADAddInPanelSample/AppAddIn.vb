@@ -447,6 +447,7 @@ Partial Class AppAddIn
         Public orderByAsc As Boolean
         ' パネル表示を纏めるか否か
         Public grouping As Boolean = True
+        Public Const panelHorizon As Double = 1000
 
         Public Sub New(ByVal drawing As Drawing, ByVal geometry As Geometry, ByVal panelCounter As Integer, ByVal currentX As Double, ByVal currentY As Double, ByVal selectionManager As SelectionManager, ByRef layers As LayerCollection)
             MyBase.New(drawing, geometry, panelCounter, currentX, currentY, selectionManager, layers)
@@ -525,7 +526,7 @@ Partial Class AppAddIn
 
                 ' Todo 2m幅おく
                 Dim startPoint As Point2d
-                startPoint = New Point2d(param.startPoint.X + (width * param.theNumberWantToPut) + 2000, param.startPoint.Y)
+                startPoint = New Point2d(param.startPoint.X + (width * param.theNumberWantToPut) + panelHorizon, param.startPoint.Y)
                 ' 置きたい個数が1個の場合は、手修正の為、1パネル分開けておく
                 If param.theNumberWantToPut < 2 Then
                     startPoint = New Point2d(startPoint.X + width, startPoint.Y)
@@ -539,7 +540,7 @@ Partial Class AppAddIn
                 Dim panelDurationSample As Long : panelDurationSample = (panelDuration - 500) * -1
                 If param.theNumberWantToPut = panelCounter Then
                     ' 区画開始線
-                    Dim lineFirstPoint As Point2d = Geometry.CreatePoint(param.startPoint.X - 1000, param.startPoint.Y + IIf(Me.orderByAsc, 500, panelDurationSample))
+                    Dim lineFirstPoint As Point2d = Geometry.CreatePoint(param.startPoint.X - (panelHorizon / 2), param.startPoint.Y + IIf(Me.orderByAsc, 500, panelDurationSample))
                     Dim lineEndPoint As Point2d = Geometry.CreatePoint(param.startPoint.X + (width * putCount), param.startPoint.Y + IIf(Me.orderByAsc, 500, panelDurationSample))
                     writePanelLine(lineFirstPoint, lineEndPoint)
                 End If
@@ -548,7 +549,7 @@ Partial Class AppAddIn
                     ' パネル下線
                     ' FIXME 区画間隔が7m固定
                     Dim lineFirstPoint As Point2d = Geometry.CreatePoint(param.startPoint.X, param.startPoint.Y + IIf(Me.orderByAsc, panelDurationSample, 500))
-                    Dim lineEndPoint As Point2d = Geometry.CreatePoint(param.startPoint.X + (width * putCount) + 1000, param.startPoint.Y + IIf(Me.orderByAsc, panelDurationSample, 500))
+                    Dim lineEndPoint As Point2d = Geometry.CreatePoint(param.startPoint.X + (width * putCount) + (panelHorizon / 2), param.startPoint.Y + IIf(Me.orderByAsc, panelDurationSample, 500))
                     writePanelLine(lineFirstPoint, lineEndPoint)
                     ' 区画間の線
                     lineFirstPoint = Geometry.CreatePoint(lineEndPoint.X, lineEndPoint.Y + IIf(Me.orderByAsc, panelDuration, 0))
