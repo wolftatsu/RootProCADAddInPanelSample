@@ -1,3 +1,4 @@
+
 Imports System
 Imports System.Collections.Generic
 Imports System.Windows.Forms
@@ -17,6 +18,7 @@ Partial Class AppAddIn
         CommandManager.AddMacroCommand("パネル設置シミュレーション（1列ずつ）（上から順に配置）", AddressOf Me.MacroCommand8)
         CommandManager.AddMacroCommand("パネル設置シミュレーション（1列ずつ）（下から順に配置）", AddressOf Me.MacroCommand9)
         CommandManager.AddMacroCommand("区画番号付番", AddressOf Me.MacroCommand5)
+        CommandManager.AddMacroCommand("パネルパワコンレイアウト", AddressOf Me.MacroCommand10)
         ' CommandManager.AddMacroCommand("TestSelectionManager", AddressOf Me.TestSelectionManager)
     End Sub
     Private Sub AppAddIn_Shutdown(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Shutdown
@@ -29,6 +31,8 @@ Partial Class AppAddIn
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand7)
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand8)
         CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand9)
+        CommandManager.RemoveMacroCommand(AddressOf Me.MacroCommand10)
+
     End Sub
     ' パネル作成
     Private Sub MacroCommand()
@@ -209,6 +213,23 @@ Partial Class AppAddIn
         doc.UndoManager.EndUndoUnit()
 
     End Sub
+    '   パネルパワコンレイアウト
+    Private Sub MacroCommand10()
+        On Error Resume Next
+        Dim doc As Document = ActiveDocument
+        Dim drawing As Drawing = doc.CurrentDrawing
+        Dim panelBaseCount As Integer = CInt(InputBox("パネル割り当て枚数を入力してください"))
+
+        Dim designer As PanelDesigner = New PanelDesigner(drawing, Geometry, panelBaseCount, 0, 0, doc.SelectionManager, doc.LayerTable.RootLayer.ChildLayers)
+
+        ' 拡張オプションON
+        designer.orderByAsc = True
+
+        doc.UndoManager.BeginUndoUnit()
+        designer.panelLayout()
+        doc.UndoManager.EndUndoUnit()
+
+    End Sub
 
     Private Sub TestSelectionManager()
         On Error Resume Next
@@ -246,6 +267,7 @@ Partial Class AppAddIn
         Public Const width As Double = 1660.0
         Public Const height As Double = 4150.0
         Public Const charaH As Double = 2500
+        Public Const panelDuration As Integer = 5500
         Public Sub New(ByVal drawing As Drawing, ByVal geometry As Geometry, ByVal panelCounter As Integer, ByVal currentX As Double, ByVal currentY As Double, ByVal selectionManager As SelectionManager, ByRef layers As LayerCollection)
             Me.currentX = currentX
             Me.currentY = currentY
@@ -322,6 +344,23 @@ Partial Class AppAddIn
             createAPanel = panelPoints
 
         End Function
+        ' パネル一枚分の配置座標を返す
+        Public Function createAPanelByOne(ByVal x As Double, ByVal y As Double) As Point2d()
+
+            Dim panelPoints(4) As Point2d
+
+            panelPoints(0) = Geometry.CreatePoint(x, y)
+            panelPoints(1) = Geometry.CreatePoint(x + width, y)
+            panelPoints(2) = Geometry.CreatePoint(x + width, y - height / 4)
+            panelPoints(3) = Geometry.CreatePoint(x, y - height / 4)
+            panelPoints(4) = Geometry.CreatePoint(x, y)
+            createAPanelByOne = panelPoints
+
+        End Function
+        ' パネル一枚分の配置座標を返す
+        Public Function createAPanelByOne(ByVal p As Point2d) As Point2d()
+            createAPanelByOne = createAPanelByOne(p.X, p.Y)
+        End Function
         ' パネル配置ガイド線の上部xcmの所に境界の線を引く
         Public Sub writePanelLine(ByVal top As Integer)
             Dim shape As SelectedShape = Me.selectinoManager.SelectedShapes.Item(0)
@@ -334,9 +373,8 @@ Partial Class AppAddIn
             Dim shape As SelectedShape = Me.selectinoManager.SelectedShapes.Item(0)
             Dim linePoints(1) As Point2d
             Dim firstPoint As Point2d = Geometry.CreatePoint(getEndPoint(shape.Shape).X + 1000, getEndPoint(shape.Shape).Y + 500)
-            Dim endPoint As Point2d = Geometry.CreatePoint(getEndPoint(shape.Shape).X + 1000, getEndPoint(shape.Shape).Y - 7000)
+            Dim endPoint As Point2d = Geometry.CreatePoint(getEndPoint(shape.Shape).X + 1000, getEndPoint(shape.Shape).Y - panelDuration)
             writePanelLine(firstPoint, endPoint)
-
         End Sub
 
         Public Sub writePanelLine(ByVal firstPoint As Point2d, ByVal endPoint As Point2d)
@@ -355,13 +393,20 @@ Partial Class AppAddIn
         ' ----- utils -----
         ' パネルレイヤ取得
         Public Function getPanelLayer() As Layer
+            Return getSomeLayer("パネル")
+        End Function
+        Public Function getPowaconLayer() As Layer
+            Return getSomeLayer("パワコン")
+        End Function
+        Public Function getSomeLayer(ByVal name As String) As Layer
             For i As Integer = 0 To Me.layers.Count - 1
-                If Me.layers(i).Name = "パネル" Then
+                If Me.layers(i).Name = name Then
                     Return layers(i)
                 End If
             Next
             Return layers(0)
         End Function
+
         ' ----- static-utils -----
         ' 図形の始点を取得する
         Public Shared Function getFirstPoint(ByVal shape As Shape) As Point2d
@@ -389,7 +434,9 @@ Partial Class AppAddIn
         End Function
 
     End Class
+    ' *********************************
     ' パネル配置シミュレーター
+    ' *********************************
     Public Class PanelSimulater
         Inherits PanelCreator
         Protected putPanelCounter As Integer
@@ -457,6 +504,7 @@ Partial Class AppAddIn
             Dim ret As PutPanelVo
             Dim putCount As Integer
 
+
             ' 長さに対して何個おけるか？
             Dim theNumberCanBePut As Integer = param.length / PanelCreator.width
             ' 置ける個数が2個未満だった時の考慮
@@ -488,22 +536,23 @@ Partial Class AppAddIn
 
             ' 区画枠線描画
             If Me.isTheSandboxAvailable = True Then
+                Dim panelDurationSample As Long : panelDurationSample = (panelDuration - 500) * -1
                 If param.theNumberWantToPut = panelCounter Then
                     ' 区画開始線
-                    Dim lineFirstPoint As Point2d = Geometry.CreatePoint(param.startPoint.X - 1000, param.startPoint.Y + IIf(Me.orderByAsc, 500, -6500))
-                    Dim lineEndPoint As Point2d = Geometry.CreatePoint(param.startPoint.X + (width * putCount), param.startPoint.Y + IIf(Me.orderByAsc, 500, -6500))
+                    Dim lineFirstPoint As Point2d = Geometry.CreatePoint(param.startPoint.X - 1000, param.startPoint.Y + IIf(Me.orderByAsc, 500, panelDurationSample))
+                    Dim lineEndPoint As Point2d = Geometry.CreatePoint(param.startPoint.X + (width * putCount), param.startPoint.Y + IIf(Me.orderByAsc, 500, panelDurationSample))
                     writePanelLine(lineFirstPoint, lineEndPoint)
                 End If
                 If param.theNumberWantToPut <= theNumberCanBePut Then
                     ' 区画終了線
                     ' パネル下線
                     ' FIXME 区画間隔が7m固定
-                    Dim lineFirstPoint As Point2d = Geometry.CreatePoint(param.startPoint.X, param.startPoint.Y + IIf(Me.orderByAsc, -6500, 500))
-                    Dim lineEndPoint As Point2d = Geometry.CreatePoint(param.startPoint.X + (width * putCount) + 1000, param.startPoint.Y + IIf(Me.orderByAsc, -6500, 500))
+                    Dim lineFirstPoint As Point2d = Geometry.CreatePoint(param.startPoint.X, param.startPoint.Y + IIf(Me.orderByAsc, panelDurationSample, 500))
+                    Dim lineEndPoint As Point2d = Geometry.CreatePoint(param.startPoint.X + (width * putCount) + 1000, param.startPoint.Y + IIf(Me.orderByAsc, panelDurationSample, 500))
                     writePanelLine(lineFirstPoint, lineEndPoint)
                     ' 区画間の線
-                    lineFirstPoint = Geometry.CreatePoint(lineEndPoint.X, lineEndPoint.Y + IIf(Me.orderByAsc, 7000, 0))
-                    lineEndPoint = Geometry.CreatePoint(lineEndPoint.X, lineEndPoint.Y + IIf(Me.orderByAsc, 0, -7000))
+                    lineFirstPoint = Geometry.CreatePoint(lineEndPoint.X, lineEndPoint.Y + IIf(Me.orderByAsc, panelDuration, 0))
+                    lineEndPoint = Geometry.CreatePoint(lineEndPoint.X, lineEndPoint.Y + IIf(Me.orderByAsc, 0, (panelDuration * -1)))
                     writePanelLine(lineFirstPoint, lineEndPoint)
                 End If
             End If
@@ -524,6 +573,79 @@ Partial Class AppAddIn
         End Function
 
     End Class
+    ' **************************
+    ' パネルレイアウト作成
+    ' **************************
+    Public Class PanelDesigner
+        Inherits PanelCreator
+
+        ' 選択オブジェクトをy軸上の上から取り出すか否か
+        Public orderByAsc As Boolean
+        Public panelBaseCount As Integer
+
+        Public Sub New(ByVal drawing As Drawing, ByVal geometry As Geometry, ByVal panelCounter As Integer, ByVal currentX As Double, ByVal currentY As Double, ByVal selectionManager As SelectionManager, ByRef layers As LayerCollection)
+            MyBase.New(drawing, geometry, panelCounter, currentX, currentY, selectionManager, layers)
+            Me.panelBaseCount = panelCounter
+        End Sub
+
+        ' 選択済みの基準線にそって、パワコン割り当て毎にパネル色分けを行う
+        Public Sub panelLayout()
+
+            Dim myrandom As New Random
+            Dim colorTable() As Integer = {2, 3, 4, 5, 6, 7, 9}
+            ' 色index（初期）
+            Dim colorIndex As Integer : colorIndex = myrandom.Next(1, 8)
+            Dim panelCounter As Integer : panelCounter = 0
+            Dim columnConter As Integer : columnConter = 0
+            Dim panelSubCount As Integer : panelSubCount = 0
+            Dim colorBreakCounter As Integer : colorBreakCounter = 0
+
+            ' 基準線
+            Dim lines As SelectedLineCollection = New SelectedLineCollection(selectinoManager.SelectedShapes, Me.orderByAsc)
+
+            ' パネル設置位置（初期）
+            Dim panelxy As Point2d : panelxy = PanelCreator.getFirstPoint(lines.getCurrent())
+
+            ' 配置可能な列数
+            Dim puttable As Integer = PanelCreator.getLength(lines.getCurrent()) / PanelCreator.width
+
+            Do While columnConter < puttable
+                Dim panel As PolylineShape
+
+                ' パネル作成
+                panel = drawing.Shapes.AddPolyline(createAPanelByOne(panelxy))
+                panelCounter = panelCounter + 1
+                panelSubCount = panelSubCount + 1
+                colorBreakCounter = colorBreakCounter + 1
+
+                ' パネル色分け
+                panel.ColorNumber = colorTable(colorIndex)
+                panel.LinewidthNumber = 7
+                panel.Layer = Me.getPowaconLayer()
+
+                ' 色更新
+                If colorBreakCounter = Me.panelBaseCount Then
+                    colorIndex = colorIndex + 1
+                    colorBreakCounter = 0
+                    If colorIndex > 7 Then
+                        colorIndex = 0
+                    End If
+                End If
+
+                ' パネル位置決め
+                panelxy = New Point2d(panelxy.X, PanelCreator.getFirstPoint(lines.getCurrent()).Y - ((height / 4) * panelSubCount))
+
+                ' 列ブレイク
+                If panelCounter Mod 4 = 0 Then
+                    panelSubCount = 0
+                    columnConter = columnConter + 1
+                    panelxy = New Point2d(panelxy.X + width, PanelCreator.getFirstPoint(lines.getCurrent()).Y)
+                End If
+            Loop
+
+        End Sub
+    End Class
+
     ' パネル設置メソッドのパラメタクラス
     Public Class PutPanelVo
         Public length As Double
