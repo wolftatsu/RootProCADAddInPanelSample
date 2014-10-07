@@ -372,8 +372,8 @@ Partial Class AppAddIn
         Public Sub writePanelLineVartical()
             Dim shape As SelectedShape = Me.selectinoManager.SelectedShapes.Item(0)
             Dim linePoints(1) As Point2d
-            Dim firstPoint As Point2d = Geometry.CreatePoint(getEndPoint(shape.Shape).X + 1000, getEndPoint(shape.Shape).Y + 500)
-            Dim endPoint As Point2d = Geometry.CreatePoint(getEndPoint(shape.Shape).X + 1000, getEndPoint(shape.Shape).Y - panelDuration)
+            Dim firstPoint As Point2d = Geometry.CreatePoint(getEndPoint(shape.Shape).X + 500, getEndPoint(shape.Shape).Y + 500)
+            Dim endPoint As Point2d = Geometry.CreatePoint(getEndPoint(shape.Shape).X + 500, getEndPoint(shape.Shape).Y - panelDuration)
             writePanelLine(firstPoint, endPoint)
         End Sub
 
